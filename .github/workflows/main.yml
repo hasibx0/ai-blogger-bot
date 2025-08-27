@@ -1,4 +1,4 @@
-name: AI Blogger Auto
+name: ai_blogger_email.py
 
 on:
   schedule:
