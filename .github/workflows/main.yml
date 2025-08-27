@@ -1,4 +1,4 @@
-name: ai_blogger_email.py
+name: ai_blogger_email
 
 on:
   schedule:
@@ -34,4 +34,4 @@ jobs:
           BLOGGER_POST_EMAIL: ${{ secrets.BLOGGER_POST_EMAIL }}
           UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: python ai_blogger_hf_email.py
+        run: python ai_blogger_email.py
