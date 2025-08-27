@@ -1,6 +1,7 @@
 name: ai_blogger_email
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: "0 1 * * *"
     - cron: "0 3 * * *"
