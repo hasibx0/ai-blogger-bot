@@ -1,15 +1,17 @@
 import os
-import requests
-import html
-import markdown
+import smtplib
+import ssl
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime
+import requests
 
-# -------------------------
-# HuggingFace API: Generate Blog Content
-# -------------------------
+# --------------------------
+# HuggingFace Generate Blog
+# --------------------------
 def hf_generate_blog(topic, context=""):
     API_URL = "https://api-inference.huggingface.co/models/gpt2"
-    headers = {"Authorization": f"Bearer {os.getenv('HF_API_KEY')}"}
+    headers = {"Authorization": f"Bearer {os.getenv('HF_TOKEN')}"}
 
     prompt = (
         f"Write a ~600 word SEO optimized blog post about {topic}. "
@@ -33,54 +35,47 @@ def hf_generate_blog(topic, context=""):
     except Exception as e:
         return f"## {topic}\n\n(Fallback Error: {str(e)})"
 
-# -------------------------
-# Build HTML for Blogger (Markdown → HTML)
-# -------------------------
-def build_html(topic, text, image_url=None):
-    safe_topic = html.escape(topic)
 
-    # Convert markdown to clean HTML
-    html_text = markdown.markdown(text, extensions=["extra"])
+# --------------------------
+# Send Email to Blogger
+# --------------------------
+def send_email(subject, body, to_email):
+    gmail_user = os.getenv("GMAIL_USER")
+    gmail_pass = os.getenv("GMAIL_APP_PASSWORD")
 
-    html_body = f"<h2>{safe_topic}</h2>{html_text}"
+    if not gmail_user or not gmail_pass:
+        raise ValueError("❌ Gmail credentials missing from environment variables")
 
-    if image_url:
-        html_body += (
-            f'<p><img src="{image_url}" alt="{safe_topic}" '
-            f'style="max-width:100%;height:auto;border-radius:12px;"></p>'
-        )
-    return html_body
+    message = MIMEMultipart()
+    message["From"] = gmail_user
+    message["To"] = to_email
+    message["Subject"] = subject
 
-# -------------------------
-# Blogger API Post
-# -------------------------
-def post_to_blogger(blog_id, access_token, title, content):
-    url = f"https://www.googleapis.com/blogger/v3/blogs/{blog_id}/posts/"
-    headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+    message.attach(MIMEText(body, "html"))
 
-    data = {"kind": "blogger#post", "blog": {"id": blog_id}, "title": title, "content": content}
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465, context=context) as server:
+        server.login(gmail_user, gmail_pass)
+        server.sendmail(gmail_user, to_email, message.as_string())
 
-    response = requests.post(url, headers=headers, json=data)
+    print("✅ Email sent to Blogger successfully!")
 
-    if response.status_code == 200:
-        print("✅ Post published successfully!")
-    else:
-        print("❌ Error:", response.text)
 
-# -------------------------
-# MAIN SCRIPT
-# -------------------------
+# --------------------------
+# MAIN
+# --------------------------
 if __name__ == "__main__":
-    BLOG_ID = os.getenv("BLOGGER_BLOG_ID")
-    ACCESS_TOKEN = os.getenv("BLOGGER_ACCESS_TOKEN")
+    BLOGGER_POST_EMAIL = os.getenv("BLOGGER_POST_EMAIL")
 
     topic = "AI Evolution"
     today = datetime.now().strftime("%Y-%m-%d")
     title = f"{topic} - Auto Post {today}"
 
     blog_text = hf_generate_blog(topic, context="Latest AI news, research and trends.")
-    image_url = "https://example.com/sample-image.jpg"  # Optional image
 
-    content = build_html(topic, blog_text, image_url)
+    email_body = f"""
+    <h2>{topic}</h2>
+    <p>{blog_text}</p>
+    """
 
-    post_to_blogger(BLOG_ID, ACCESS_TOKEN, title, content)
+    send_email(title, email_body, BLOGGER_POST_EMAIL)
