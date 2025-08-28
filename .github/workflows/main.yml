@@ -10,7 +10,6 @@ on:
     - cron: "0 10 * * *"
     - cron: "0 14 * * *"
     - cron: "0 16 * * *"
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -33,6 +32,5 @@ jobs:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           BLOGGER_POST_EMAIL: ${{ secrets.BLOGGER_POST_EMAIL }}
-          UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python ai_blogger_email.py
