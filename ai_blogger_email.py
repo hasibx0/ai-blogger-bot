@@ -10,7 +10,7 @@ import requests
 # HuggingFace Generate Blog
 # --------------------------
 def hf_generate_blog(topic, context=""):
-   API_URL = "https://api-inference.huggingface.co/models/facebook/opt-1.3b"
+    API_URL = "https://api-inference.huggingface.co/models/facebook/opt-1.3b"
     headers = {"Authorization": f"Bearer {os.getenv('HF_TOKEN')}"}
 
     prompt = (
@@ -20,7 +20,7 @@ def hf_generate_blog(topic, context=""):
         f"Include headings with ## and ### like a real blogger. "
         f"Context: {context}"
     )
-
+   
     payload = {"inputs": prompt, "max_new_tokens": 600, "temperature": 0.9}
 
     try:
@@ -79,4 +79,5 @@ if __name__ == "__main__":
     """
 
     send_email(title, email_body, BLOGGER_POST_EMAIL)
+
 
