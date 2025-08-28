@@ -1,2 +1,5 @@
 requests
+markdown
+python-dotenv
+Pillow
 feedparser
