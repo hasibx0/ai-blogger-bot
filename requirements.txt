@@ -1,7 +1,3 @@
 requests
-transformers==4.42.4
-torch
+markdown
 python-dotenv
-Pillow
-huggingface_hub
-feedparser
