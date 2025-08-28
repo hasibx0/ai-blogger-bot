@@ -1,20 +1,19 @@
-name: AI Blogger Bot
+name: ai_blogger_auto_post
 
 on:
+  workflow_dispatch:   # manually run করা যাবে
   schedule:
-    - cron: "0 1 * * *"
-    - cron: "0 3 * * *"
-    - cron: "0 4 * * *"
-    - cron: "30 6 * * *"
-    - cron: "0 10 * * *"
-    - cron: "0 14 * * *"
-    - cron: "0 16 * * *"
-  workflow_dispatch:
+    - cron: "0 1 * * *"   # রাত ১টা
+    - cron: "0 3 * * *"   # রাত ৩টা
+    - cron: "0 4 * * *"   # রাত ৪টা
+    - cron: "30 6 * * *"  # সকাল ৬:৩০
+    - cron: "0 10 * * *"  # সকাল ১০টা
+    - cron: "0 14 * * *"  # দুপুর ২টা
+    - cron: "0 16 * * *"  # বিকাল ৪টা
 
 jobs:
-  run-bot:
+  build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -29,19 +28,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Pre-download GPT2 model (for fallback)
-        run: |
-          python - <<EOF
-          from transformers import pipeline
-          generator = pipeline("text-generation", model="gpt2")
-          print("✅ GPT2 fallback model cached successfully!")
-          EOF
-
       - name: Run Blogger Bot
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           BLOGGER_POST_EMAIL: ${{ secrets.BLOGGER_POST_EMAIL }}
-        run: |
-          python ai_blogger_email.py
+        run: python ai_blogger_email.py
