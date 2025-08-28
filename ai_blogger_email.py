@@ -6,6 +6,9 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 import requests
 
+# Local fallback model
+from transformers import pipeline, set_seed
+
 # --------------------------
 # HuggingFace Generate Blog
 # --------------------------
@@ -33,9 +36,29 @@ def hf_generate_blog(topic, context=""):
         elif isinstance(data, dict) and "generated_text" in data:
             return data["generated_text"]
         else:
-            return f"## {topic}\n\n(Fallback text - no output from model)"
+            raise ValueError("Empty response from HuggingFace API")
+
     except Exception as e:
-        return f"## {topic}\n\n(Fallback Error: {str(e)})"
+        print(f"❌ HuggingFace API failed: {e}")
+        return local_fallback_blog(topic, context)
+
+
+# --------------------------
+# Local Fallback (GPT-2)
+# --------------------------
+def local_fallback_blog(topic, context=""):
+    print("⚡ Using local GPT-2 fallback...")
+    generator = pipeline("text-generation", model="gpt2")
+    set_seed(42)
+
+    prompt = (
+        f"Blog Post Title: {topic}\n\n"
+        f"Write a detailed SEO friendly blog post about {topic}. "
+        f"Context: {context}. Use headings with ## and short paragraphs."
+    )
+
+    result = generator(prompt, max_length=600, num_return_sequences=1)
+    return result[0]["generated_text"]
 
 
 # --------------------------
