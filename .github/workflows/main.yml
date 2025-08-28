@@ -1,37 +1,35 @@
-name: ai_blogger_auto_post
+name: Auto AI Blogger Post (USA Time)
 
 on:
-  workflow_dispatch:   # manually run করা যাবে
   schedule:
-    - cron: "0 1 * * *"   # রাত ১টা
-    - cron: "0 3 * * *"   # রাত ৩টা
-    - cron: "0 4 * * *"   # রাত ৪টা
-    - cron: "30 6 * * *"  # সকাল ৬:৩০
-    - cron: "0 10 * * *"  # সকাল ১০টা
-    - cron: "0 14 * * *"  # দুপুর ২টা
-    - cron: "0 16 * * *"  # বিকাল ৪টা
+    - cron: "0 13 * * *"   # 9 AM EST
+    - cron: "0 19 * * *"   # 3 PM EST
+    - cron: "0 1 * * *"    # 9 PM EST (আগামী দিনের 1 AM UTC)
+  workflow_dispatch:
 
 jobs:
-  build:
+  post:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Checkout Repo
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install requests feedparser
 
-      - name: Run Blogger Bot
+      - name: Run Blogger Script
         env:
-          HF_TOKEN: ${{ secrets.HF_TOKEN }}
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           BLOGGER_POST_EMAIL: ${{ secrets.BLOGGER_POST_EMAIL }}
-        run: python ai_blogger_email.py
+          UNSPLASH_ACCESS_KEY: ${{ secrets.UNSPLASH_ACCESS_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python ai_blogger_random_topics.py
