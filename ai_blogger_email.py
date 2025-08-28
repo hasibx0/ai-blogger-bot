@@ -6,59 +6,48 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 import requests
 
-# Local fallback model
-from transformers import pipeline, set_seed
 
 # --------------------------
 # HuggingFace Generate Blog
 # --------------------------
 def hf_generate_blog(topic, context=""):
-    API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large"
-    headers = {"Authorization": f"Bearer {os.getenv('HF_TOKEN')}"}
+    HF_TOKEN = os.getenv("HF_TOKEN")
+    MODEL = "google/gemma-2b-it"  # 🔹 চাইলে Mistral/Falcon ব্যবহার করতে পারো
+
+    API_URL = f"https://api-inference.huggingface.co/models/{MODEL}"
+    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
 
     prompt = (
-        f"Write a 600 word SEO optimized blog post about {topic}. "
-        f"Make it sound like a human wrote it — conversational, natural flow, "
-        f"use rhetorical questions, storytelling, and short paragraphs. "
-        f"Include headings with ## and ### like a real blogger. "
+        f"Write a 600-word SEO optimized blog post about {topic}. "
+        f"Make it conversational and natural, as if a human blogger wrote it. "
+        f"Use storytelling, rhetorical questions, and short paragraphs. "
+        f"Use headings with ## and ### like a real blog post. "
         f"Context: {context}"
     )
 
-    payload = {"inputs": prompt, "parameters": {"max_new_tokens": 600, "temperature": 0.9}}
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "max_new_tokens": 700,
+            "temperature": 0.8,
+            "top_p": 0.9,
+            "do_sample": True,
+        },
+    }
 
     try:
-        response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
+        response = requests.post(API_URL, headers=headers, json=payload, timeout=120)
         response.raise_for_status()
-        data = response.json()
+        result = response.json()
 
-        if isinstance(data, list) and "generated_text" in data[0]:
-            return data[0]["generated_text"]
-        elif isinstance(data, dict) and "generated_text" in data:
-            return data["generated_text"]
+        if isinstance(result, list) and "generated_text" in result[0]:
+            return result[0]["generated_text"]
+        elif isinstance(result, dict) and "generated_text" in result:
+            return result["generated_text"]
         else:
-            raise ValueError("Empty response from HuggingFace API")
-
+            return f"## {topic}\n\n(Fallback) Could not parse response: {result}"
     except Exception as e:
-        print(f"❌ HuggingFace API failed: {e}")
-        return local_fallback_blog(topic, context)
-
-
-# --------------------------
-# Local Fallback (GPT-2)
-# --------------------------
-def local_fallback_blog(topic, context=""):
-    print("⚡ Using local GPT-2 fallback...")
-    generator = pipeline("text-generation", model="gpt2")
-    set_seed(42)
-
-    prompt = (
-        f"Blog Post Title: {topic}\n\n"
-        f"Write a detailed SEO friendly blog post about {topic}. "
-        f"Context: {context}. Use headings with ## and short paragraphs."
-    )
-
-    result = generator(prompt, max_length=600, num_return_sequences=1)
-    return result[0]["generated_text"]
+        return f"## {topic}\n\n(Fallback Error: {str(e)})"
 
 
 # --------------------------
@@ -69,7 +58,7 @@ def send_email(subject, body, to_email):
     gmail_pass = os.getenv("GMAIL_APP_PASSWORD")
 
     if not gmail_user or not gmail_pass:
-        raise ValueError("❌ Gmail credentials missing from environment variables")
+        raise ValueError("❌ Gmail credentials missing in environment variables")
 
     message = MIMEMultipart()
     message["From"] = gmail_user
@@ -100,7 +89,9 @@ if __name__ == "__main__":
 
     email_body = f"""
     <h2>{topic}</h2>
-    <p>{blog_text}</p>
+    <div style="font-family:Arial, sans-serif; line-height:1.6;">
+    {blog_text}
+    </div>
     """
 
     send_email(title, email_body, BLOGGER_POST_EMAIL)
