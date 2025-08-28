@@ -96,12 +96,11 @@ def gather_context(topic):
 
 # ---------------- HuggingFace (AI Content) -----------------
 def hf_generate_blog(topic, context):
-    # gpt2 ফ্রি/ওপেন—কনটেন্ট ছোট হতে পারে; তবু কাজ চলবে
     url = "https://api-inference.huggingface.co/models/gpt2"
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
     prompt = (
         f"Write a ~600 word SEO optimized blog post about {topic}. "
-        f"Use headings and short paragraphs. Context: {context}"
+        f"Use headings (##) and short paragraphs. Context: {context}"
     )
 
     for attempt in range(MAX_RETRIES):
@@ -115,9 +114,7 @@ def hf_generate_blog(topic, context):
             if r.status_code == 200:
                 data = r.json()
                 if isinstance(data, list) and data and "generated_text" in data[0]:
-                    text = data[0]["generated_text"]
-                    # পরিষ্কার/সীমাবদ্ধতা
-                    text = text.replace("\r", "").strip()
+                    text = data[0]["generated_text"].strip()
                     if len(text) > 6000:
                         text = text[:6000] + "..."
                     return text
@@ -129,7 +126,22 @@ def hf_generate_blog(topic, context):
             logger.warning(f"HF retry {attempt+1}: {e}")
         time.sleep(RETRY_BACKOFF * (attempt+1))
 
-    return f"{topic} - AI Evolution Blog Post (Fallback)"
+    # ----- Fallback (AI ব্যর্থ হলে) -----
+    fallback_text = f"""## {topic}
+
+Artificial Intelligence is evolving rapidly. 
+Every day, new research, tools, and applications are being introduced that 
+change the way humans interact with machines.
+
+### Why it matters
+AI is not just about automation. It represents a shift in 
+how knowledge is processed, how industries adapt, 
+and how society moves forward.
+
+### Final Thoughts
+The journey of AI evolution is ongoing, and this blog 
+will continue to track its progress and impact."""
+    return fallback_text
 
 # ---------------- Unsplash Image -----------------
 def fetch_unsplash_image(query):
@@ -145,8 +157,7 @@ def fetch_unsplash_image(query):
 # ---------------- HTML Builder -----------------
 def build_html(topic, text, image_url):
     safe_topic = html.escape(topic)
-    # টেক্সটকে সেফ করা + অনুচ্ছেদে ভাঙা
-    safe_text = html.escape(text).strip()
+    safe_text = text.strip()   # এখানে আর escape করিনি → headings safe থাকবে
     if not safe_text:
         safe_text = "Short update about AI evolution."
     paras = [p.strip() for p in safe_text.split("\n\n") if p.strip()]
@@ -167,10 +178,7 @@ def send_email(subject, plain_text, html_body):
     msg["From"] = GMAIL_USER
     msg["To"] = BLOGGER_POST_EMAIL
 
-    # ❗ Blogger কখনো plain-text নেয়—তাই এখানে আসল কনটেন্টই রাখলাম
     msg.set_content(f"{plain_text}")
-
-    # HTML ভার্সন
     msg.add_alternative(html_body, subtype="html")
 
     try:
@@ -203,4 +211,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
