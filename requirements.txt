@@ -3,3 +3,5 @@ transformers
 torch
 python-dotenv
 Pillow
+huggingface_hub
+feedparser
