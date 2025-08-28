@@ -10,18 +10,18 @@ import requests
 # HuggingFace Generate Blog
 # --------------------------
 def hf_generate_blog(topic, context=""):
-    API_URL = "https://api-inference.huggingface.co/models/facebook/opt-1.3b"
+    API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-large"
     headers = {"Authorization": f"Bearer {os.getenv('HF_TOKEN')}"}
 
     prompt = (
-        f"Write a ~600 word SEO optimized blog post about {topic}. "
+        f"Write a 600 word SEO optimized blog post about {topic}. "
         f"Make it sound like a human wrote it — conversational, natural flow, "
         f"use rhetorical questions, storytelling, and short paragraphs. "
         f"Include headings with ## and ### like a real blogger. "
         f"Context: {context}"
     )
-   
-    payload = {"inputs": prompt, "max_new_tokens": 600, "temperature": 0.9}
+
+    payload = {"inputs": prompt, "parameters": {"max_new_tokens": 600, "temperature": 0.9}}
 
     try:
         response = requests.post(API_URL, headers=headers, json=payload, timeout=60)
@@ -30,8 +30,10 @@ def hf_generate_blog(topic, context=""):
 
         if isinstance(data, list) and "generated_text" in data[0]:
             return data[0]["generated_text"]
+        elif isinstance(data, dict) and "generated_text" in data:
+            return data["generated_text"]
         else:
-            return f"## {topic}\n\n(Fallback text) Could not generate content."
+            return f"## {topic}\n\n(Fallback text - no output from model)"
     except Exception as e:
         return f"## {topic}\n\n(Fallback Error: {str(e)})"
 
@@ -79,5 +81,3 @@ if __name__ == "__main__":
     """
 
     send_email(title, email_body, BLOGGER_POST_EMAIL)
-
-
