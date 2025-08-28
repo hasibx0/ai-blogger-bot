@@ -150,8 +150,7 @@ def build_html(topic, text, image_url):
     if not safe_text:
         safe_text = "Short update about AI evolution."
     paras = [p.strip() for p in safe_text.split("\n\n") if p.strip()]
-    body = "".join(f"<p>{p.replace('\n', '<br>')}</p>" for p in paras) or f"<p>{safe_text}</p>"
-
+    body = "".join("<p>" + p.replace("\n", "<br>") + "</p>" for p in paras) or f"<p>{safe_text}</p>"
     html_body = f"<h2>{safe_topic}</h2>{body}"
     if image_url:
         html_body += (
@@ -204,3 +203,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
