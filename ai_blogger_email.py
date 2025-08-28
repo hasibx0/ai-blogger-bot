@@ -1,4 +1,4 @@
-# File: ai_blogger_hf_email.py 
+# File: ai_blogger_hf_email.py
 
 import os
 import time
@@ -9,7 +9,7 @@ import requests
 import feedparser
 import html
 from email.message import EmailMessage
-from datetime import datetime, timezone
+from datetime import datetime
 from urllib.parse import quote_plus
 
 # ---------------- Config -----------------
@@ -64,7 +64,9 @@ def fetch_google_news(query, max_items=3):
     try:
         feed = feedparser.parse(rss)
         for entry in feed.entries[:max_items]:
-            snippets.append(f"{entry.get('title','')}. {entry.get('summary','')}")
+            t = entry.get('title', '')
+            s = entry.get('summary', '')
+            snippets.append(f"{t}. {s}")
     except Exception as e:
         logger.error(f"Google News error: {e}")
     return snippets
@@ -85,7 +87,8 @@ def fetch_arxiv_titles(query, max_items=3):
 def gather_context(topic):
     ctx = []
     wiki = fetch_wikipedia_summary(topic)
-    if wiki: ctx.append("Wikipedia: " + wiki)
+    if wiki:
+        ctx.append("Wikipedia: " + wiki)
     ctx.extend(fetch_google_news(topic))
     ctx.extend(fetch_arxiv_titles(topic))
     random.shuffle(ctx)
@@ -93,22 +96,35 @@ def gather_context(topic):
 
 # ---------------- HuggingFace (AI Content) -----------------
 def hf_generate_blog(topic, context):
+    # gpt2 ফ্রি/ওপেন—কনটেন্ট ছোট হতে পারে; তবু কাজ চলবে
     url = "https://api-inference.huggingface.co/models/gpt2"
     headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-    prompt = f"Write a 600 word SEO optimized blog post about {topic}. Use keywords naturally. Context: {context}"
+    prompt = (
+        f"Write a ~600 word SEO optimized blog post about {topic}. "
+        f"Use headings and short paragraphs. Context: {context}"
+    )
 
     for attempt in range(MAX_RETRIES):
         try:
-            r = requests.post(url, headers=headers, json={"inputs": prompt, "max_length": 700}, timeout=60)
+            r = requests.post(
+                url,
+                headers=headers,
+                json={"inputs": prompt, "max_length": 700},
+                timeout=60,
+            )
             if r.status_code == 200:
                 data = r.json()
-                if isinstance(data, list) and "generated_text" in data[0]:
-                    return data[0]["generated_text"]
+                if isinstance(data, list) and data and "generated_text" in data[0]:
+                    text = data[0]["generated_text"]
+                    # পরিষ্কার/সীমাবদ্ধতা
+                    text = text.replace("\r", "").strip()
+                    if len(text) > 6000:
+                        text = text[:6000] + "..."
+                    return text
                 else:
                     logger.error(f"Unexpected HF response: {data}")
-                    return f"{topic} - AI Evolution Blog Post"
             else:
-                logger.warning(f"HuggingFace error {r.status_code}: {r.text}")
+                logger.warning(f"HuggingFace error {r.status_code}: {r.text[:200]}")
         except Exception as e:
             logger.warning(f"HF retry {attempt+1}: {e}")
         time.sleep(RETRY_BACKOFF * (attempt+1))
@@ -117,7 +133,7 @@ def hf_generate_blog(topic, context):
 
 # ---------------- Unsplash Image -----------------
 def fetch_unsplash_image(query):
-    url = f"https://api.unsplash.com/photos/random?query={quote_plus(query)}&client_id={UNSPLASH_ACCESS_KEY}"
+    url = f"https://api.unsplash.com/photos/random?query={quote_plus(query)}&client_id={UNSPLASH_ACCESS_KEY}&orientation=landscape"
     r = requests_retry(url)
     if r:
         try:
@@ -126,14 +142,36 @@ def fetch_unsplash_image(query):
             return ""
     return ""
 
+# ---------------- HTML Builder -----------------
+def build_html(topic, text, image_url):
+    safe_topic = html.escape(topic)
+    # টেক্সটকে সেফ করা + অনুচ্ছেদে ভাঙা
+    safe_text = html.escape(text).strip()
+    if not safe_text:
+        safe_text = "Short update about AI evolution."
+    paras = [p.strip() for p in safe_text.split("\n\n") if p.strip()]
+    body = "".join(f"<p>{p.replace('\n', '<br>')}</p>" for p in paras) or f"<p>{safe_text}</p>"
+
+    html_body = f"<h2>{safe_topic}</h2>{body}"
+    if image_url:
+        html_body += (
+            f'<p><img src="{image_url}" alt="{safe_topic}" '
+            f'style="max-width:100%;height:auto;border-radius:12px;"></p>'
+        )
+    return html_body
+
 # ---------------- Email (Blogger Post via Email) -----------------
-def send_email(subject, html_body):
-    safe_subject = html.escape(subject)[:180]
+def send_email(subject, plain_text, html_body):
+    safe_subject = subject[:180]
     msg = EmailMessage()
     msg["Subject"] = safe_subject
     msg["From"] = GMAIL_USER
     msg["To"] = BLOGGER_POST_EMAIL
-    msg.set_content("This email contains an HTML post for Blogger.")
+
+    # ❗ Blogger কখনো plain-text নেয়—তাই এখানে আসল কনটেন্টই রাখলাম
+    msg.set_content(f"{plain_text}")
+
+    # HTML ভার্সন
     msg.add_alternative(html_body, subtype="html")
 
     try:
@@ -154,15 +192,15 @@ def main():
     logger.info(f"Selected topic: {topic}")
 
     context = gather_context(topic)
-    blog_content = hf_generate_blog(topic, context)
+    text = hf_generate_blog(topic, context)
+    logger.info(f"Generated Blog Content (preview): {text[:200]!r}")
+
     image_url = fetch_unsplash_image(topic)
+    html_body = build_html(topic, text, image_url)
+    plain_body = f"{topic}\n\n{text}"
 
-    html_body = f"<h2>{topic}</h2><p>{blog_content}</p>"
-    if image_url:
-        html_body += f'<p><img src="{image_url}" alt="{topic}" style="max-width:100%;"></p>'
-
-    send_email(f"{topic} - Auto Post {datetime.now().strftime('%Y-%m-%d')}", html_body)
+    subject = f"{topic} - Auto Post {datetime.now().strftime('%Y-%m-%d')}"
+    send_email(subject, plain_body, html_body)
 
 if __name__ == "__main__":
     main()
-
